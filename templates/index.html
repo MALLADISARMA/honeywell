@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anomaly Detection System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #1976d2;
+      --secondary-color: #0d47a1;
+      --background-color: #f5f7fa;
+      --card-background: #ffffff;
+      --text-color: #222;
+      --light-text-color: #666;
+      --border-color: #d0d7de;
+      --border-radius: 10px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--card-background);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 30px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .header h1 {
+      color: var(--primary-color);
+      margin: 0;
+      font-size: 2em;
+    }
+    .header p {
+      color: var(--light-text-color);
+      margin-top: 5px;
+    }
+
+    h2 {
+      font-size: 1.3em;
+      margin-bottom: 15px;
+      color: var(--secondary-color);
+    }
+
+    .section {
+      background: #fafafa;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+    input[type="file"] {
+      border: none;
+      padding: 5px;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .help-text {
+      font-size: 0.85em;
+      color: var(--light-text-color);
+    }
+
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 12px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1em;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn:hover {
+      background: var(--secondary-color);
+    }
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .spinner {
+      border: 3px solid rgba(0,0,0,0.1);
+      border-left-color: var(--primary-color);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 15px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error, .success {
+      display: none;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .results {
+      display: none;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .stat-card {
+      background: #f8f9fb;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 15px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 1.6em;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+    .stat-label {
+      font-size: 0.9em;
+      color: var(--light-text-color);
+    }
+    .download-btn {
+      display: inline-block;
+      margin-top: 10px;
+      background: var(--secondary-color);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .download-btn:hover {
+      background: #08306b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1> Anomaly Detection</h1>
+      <p>Upload your time series data and detect anomalies</p>
+    </div>
+
+    <div class="section">
+      <h2>📂 Upload Data</h2>
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="file">Select CSV/Excel File</label>
+          <input type="file" id="file" name="file" accept=".csv,.xlsx,.xls" class="form-control" required>
+        </div>
+    </div>
+    <p>Make sure the column name you are entering in Timestamp Column is same as your column name in your data(csv/excel).</p>
+    <p>It is important to keep Timestamp name, if you are giving normal start and normal end</p>
+
+    <div class="section">
+      <h2>⚙️ Parameters</h2>
+      <div class="form-group">
+        <label for="timestamp_col">Timestamp Column (optional)</label>
+        <input type="text" id="timestamp_col" name="timestamp_col" class="form-control" placeholder="e.g., timestamp">
+      </div>
+
+      <div class="form-group">
+        <label for="exclude_cols">Exclude Columns (optional)</label>
+        <input type="text" id="exclude_cols" name="exclude_cols" class="form-control" placeholder="e.g., id,name">
+      </div>
+
+      <div class="form-group">
+        <label for="normal_start">Normal Start (optional)</label>
+        <input type="text" id="normal_start" name="normal_start" class="form-control" placeholder="Row index or date">
+      </div>
+
+      <div class="form-group">
+        <label for="normal_end">Normal End (optional)</label>
+        <input type="text" id="normal_end" name="normal_end" class="form-control" placeholder="Row index or date">
+      </div>
+
+      <div class="form-group">
+        <label for="contamination">Expected Anomaly Rate</label>
+        <input type="range" id="contamination" name="contamination" min="0.01" max="0.5" step="0.01" value="0.1">
+        <div class="help-text">Current: <span id="contaminationValue">10%</span></div>
+      </div>
+
+      <button type="submit" id="analyzeBtn" class="btn">🚀 Analyze</button>
+      </form>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Analyzing data, please wait...</p>
+    </div>
+
+    <div class="error" id="errorMessage"></div>
+    <div class="success" id="successMessage"></div>
+
+    <div class="section results" id="results">
+      <h2>📊 Results</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+      <a href="#" id="downloadBtn" class="download-btn">📥 Download Results</a>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('uploadForm');
+      const contaminationInput = document.getElementById('contamination');
+      contaminationInput.addEventListener('input', function() {
+        document.getElementById('contaminationValue').textContent = Math.round(this.value * 100) + '%';
+      });
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const file = document.getElementById('file').files[0];
+        if (!file) { showError('Please select a file'); return; }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('timestamp_col', document.getElementById('timestamp_col').value);
+        formData.append('exclude_cols', document.getElementById('exclude_cols').value);
+        formData.append('normal_start', document.getElementById('normal_start').value);
+        formData.append('normal_end', document.getElementById('normal_end').value);
+        formData.append('contamination', contaminationInput.value);
+
+        showLoading(true);
+        fetch('/upload', { method: 'POST', body: formData })
+          .then(res => res.json())
+          .then(data => {
+            showLoading(false);
+            if (data.success) {
+              showSuccess('Analysis completed successfully!');
+              renderResults(data);
+            } else {
+              showError(data.error || 'Error during analysis');
+            }
+          })
+          .catch(err => {
+            showLoading(false);
+            showError('Network error: ' + err.message);
+          });
+      });
+
+      function renderResults(data) {
+        const statsGrid = document.getElementById('statsGrid');
+        statsGrid.innerHTML = `
+          <div class="stat-card"><div class="stat-number">${data.summary.total_rows}</div><div class="stat-label">Total Rows</div></div>
+          <div class="stat-card"><div class="stat-number">${data.summary.anomalies_detected}</div><div class="stat-label">Anomalies</div></div>
+          <div class="stat-card"><div class="stat-number">${data.summary.anomaly_rate}%</div><div class="stat-label">Anomaly Rate</div></div>
+        `;
+        document.getElementById('downloadBtn').href = '/download/' + data.output_file;
+        document.getElementById('results').style.display = 'block';
+      }
+
+      function showError(msg) {
+        const el = document.getElementById('errorMessage');
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+      function showSuccess(msg) {
+        const el = document.getElementById('successMessage');
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+      function showLoading(show) {
+        document.getElementById('loading').style.display = show ? 'block' : 'none';
+      }
+    });
+  </script>
+</body>
+</html>
