@@ -1,147 +1,71 @@
-# app.py
-from flask import Flask, render_template, request, jsonify, send_file
-import pandas as pd
 import os
-from datetime import datetime
+import pandas as pd
+from flask import Flask, request, render_template, redirect, url_for, send_file, flash
 from werkzeug.utils import secure_filename
-from anomaly_detector import MultivariateTimeSeriesAnomalyDetector
-import warnings
-warnings.filterwarnings('ignore')
+from anomaly_detector import MultivariateTimeSeriesAnomalyDetector  # import your class
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.secret_key = "supersecretkey"
+UPLOAD_FOLDER = "uploads"
+RESULT_FOLDER = "results"
+ALLOWED_EXTENSIONS = {"csv", "xlsx"}
 
-# Create directories
-UPLOAD_FOLDER = 'uploads'
-OUTPUT_FOLDER = 'outputs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+os.makedirs(RESULT_FOLDER, exist_ok=True)
+
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["RESULT_FOLDER"] = RESULT_FOLDER
+
 
 def allowed_file(filename):
-    """Check if file extension is allowed."""
-    ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def load_file(file_path):
-    """Load CSV or Excel file."""
-    try:
-        if file_path.endswith('.csv'):
-            try:
-                df = pd.read_csv(file_path, encoding='utf-8')
-            except UnicodeDecodeError:
-                df = pd.read_csv(file_path, encoding='latin-1')
-        else:
-            df = pd.read_excel(file_path)
-        return df, None
-    except Exception as e:
-        return None, str(e)
 
-@app.route('/')
+@app.route("/", methods=["GET", "POST"])
 def index():
-    """Main page."""
-    return render_template('index.html')
+    if request.method == "POST":
+        # Check if file is in request
+        if "file" not in request.files:
+            flash("No file part")
+            return redirect(request.url)
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    """Handle file upload and anomaly detection."""
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file selected'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        if not allowed_file(file.filename):
-            return jsonify({'error': 'Invalid file format. Please upload CSV or Excel files.'}), 400
-        
-        # Save uploaded file
-        filename = secure_filename(file.filename)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{timestamp}_{filename}"
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)
-        
-        # Get form parameters
-        timestamp_col = request.form.get('timestamp_col', '').strip()
-        exclude_cols = request.form.get('exclude_cols', '').strip()
-        contamination = float(request.form.get('contamination', 0.1))
-        normal_start = request.form.get('normal_start', '').strip()
-        normal_end = request.form.get('normal_end', '').strip()
+        file = request.files["file"]
 
-        if timestamp_col == '':
-            timestamp_col = None
+        if file.filename == "":
+            flash("No selected file")
+            return redirect(request.url)
 
-        # Convert empty strings to None
-        if normal_start == '':
-            normal_start = None
-        if normal_end == '':
-            normal_end = None
-        
-        exclude_cols_list = [col.strip() for col in exclude_cols.split(',') if col.strip()] if exclude_cols else []
-        
-        # Load data
-        df, error = load_file(file_path)
-        if error:
-            return jsonify({'error': f'Error loading file: {error}'}), 400
-        
-        if len(df) < 5:
-            return jsonify({'error': 'Dataset too small. Need at least 5 rows.'}), 400
-        
-        # Initialize detector
-        detector = MultivariateTimeSeriesAnomalyDetector(contamination=contamination)
-        
-        # Run anomaly detection
-        results_df = detector.fit_predict(
-            df,
-            timestamp_col=timestamp_col,
-            exclude_cols=exclude_cols_list,
-            normal_start=normal_start,
-            normal_end=normal_end
-        )
-        
-        # Save results
-        output_filename = f"anomaly_results_{timestamp}.csv"
-        output_path = os.path.join(OUTPUT_FOLDER, output_filename)
-        results_df.to_csv(output_path, index=False)
-        
-        # Optional: quick summary
-        summary_stats = {
-            "total_rows": len(results_df),
-            "anomalies_detected": int(results_df["is_anomaly"].sum()),
-            "anomaly_rate": round((results_df["is_anomaly"].mean() * 100), 2)
-        }
-        
-        # Clean up uploaded file
-        try:
-            os.remove(file_path)
-        except:
-            pass
-        
-        return jsonify({
-            'success': True,
-            'output_file': output_filename,
-            'summary': summary_stats,
-            'preview': results_df.head(5).to_dict('records'),
-            'columns': list(results_df.columns)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Processing error: {str(e)}'}), 500
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
 
-@app.route('/download/<filename>')
-def download_file(filename):
-    """Download results file."""
-    try:
-        file_path = os.path.join(OUTPUT_FOLDER, filename)
-        if os.path.exists(file_path):
-            return send_file(file_path, as_attachment=True)
+            try:
+                # Load file
+                if filename.endswith(".csv"):
+                    data = pd.read_csv(filepath)
+                else:
+                    data = pd.read_excel(filepath, sheet_name="Sheet4")
+
+                # Run anomaly detection
+                detector = MultivariateTimeSeriesAnomalyDetector(contamination=0.1)
+                result = detector.fit_predict(data, timestamp_col="timestamp")
+
+                # Save results
+                result_file = os.path.join(app.config["RESULT_FOLDER"], "anomaly_results.csv")
+                result.to_csv(result_file, index=False)
+
+                return send_file(result_file, as_attachment=True)
+
+            except Exception as e:
+                flash(f"Error processing file: {e}")
+                return redirect(request.url)
         else:
-            return jsonify({'error': 'File not found'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+            flash("Allowed file types are CSV or XLSX")
+            return redirect(request.url)
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    return render_template("index.html")
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
